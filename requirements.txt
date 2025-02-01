@@ -1,8 +1,8 @@
 # Core ML and Data Processing
 torch>=2.0.0
 transformers>=4.30.0
-pandas>=2.0.0
-numpy>=1.24.0
+pandas>=2.0.2
+numpy>=1.24.3
 scikit-learn>=1.2.0
 pyarrow>=14.0.1
 
@@ -22,7 +22,7 @@ boto3>=1.26.0
 
 # Blockchain
 web3>=6.0.0  # For Ethereum
-solana>=0.25.6  # For Solana Python SDK
+solana>=0.30.2  # For Solana Python SDK
 anchorpy>=0.18.0  # For Solana smart contracts
 solders>=0.18.0  # For Solana type definitions
 base58>=2.1.0  # Required for Solana addresses
@@ -56,4 +56,10 @@ pyyaml>=6.0.0
 # azure-storage-blob>=12.16.0
 # apache-beam>=2.46.0
 # sphinx>=6.2.1
-# mkdocs>=1.4.3 
+# mkdocs>=1.4.3
+
+# Added from the code block
+matplotlib>=3.7.1
+sqlalchemy>=2.0.0
+alembic>=1.11.0  # For database migrations
+python-dotenv>=1.0.0 
