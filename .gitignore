@@ -23,6 +23,7 @@ wheels/
 
 # Virtual Environment
 venv/
+venv_311/
 ENV/
 .env
 
@@ -41,6 +42,8 @@ aws_credentials
 *.log
 data/
 models/
+dump.rdb
+config/security.yml
 
 # Environment variables
 .env.local
