@@ -1,8 +1,25 @@
+# Core dependencies
+sqlalchemy==2.0.25
+redis==5.0.1
+pandas==2.2.0
+numpy==1.26.3
+
+# Blockchain dependencies
+web3==6.15.1
+solana==0.30.2
+
+# Security dependencies
+PyJWT==2.8.0
+cryptography==41.0.7
+pyyaml==6.0.1
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+
 # Core ML and Data Processing
 torch>=2.0.0
 transformers>=4.30.0
-pandas>=2.0.2
-numpy>=1.24.3
 scikit-learn>=1.2.0
 pyarrow>=14.0.1
 
@@ -15,14 +32,11 @@ sentencepiece>=0.1.99
 # Data Processing and Storage
 pymongo>=4.3.3
 psycopg2-binary>=2.9.6
-redis>=4.5.4
 
 # Cloud and Infrastructure
 boto3>=1.26.0
 
 # Blockchain
-web3>=6.0.0  # For Ethereum
-solana>=0.30.2  # For Solana Python SDK
 anchorpy>=0.18.0  # For Solana smart contracts
 solders>=0.18.0  # For Solana type definitions
 base58>=2.1.0  # Required for Solana addresses
@@ -33,7 +47,6 @@ dash>=2.9.0
 streamlit>=1.22.0
 
 # Development and Testing
-pytest>=7.3.1
 black>=23.3.0
 flake8>=6.0.0
 isort>=5.12.0
@@ -60,6 +73,5 @@ pyyaml>=6.0.0
 
 # Added from the code block
 matplotlib>=3.7.1
-sqlalchemy>=2.0.0
 alembic>=1.11.0  # For database migrations
-python-dotenv>=1.0.0 
+python-dotenv>=1.0.0

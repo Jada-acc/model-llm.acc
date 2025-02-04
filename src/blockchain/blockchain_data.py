@@ -204,3 +204,18 @@ class BlockchainDataSource:
             'solana': solana_status,
             'timestamp': datetime.utcnow().isoformat()
         }
+
+    def get_blockchain_data(self, start_time: datetime, end_time: datetime) -> Dict[str, Any]:
+        """Get mock blockchain data for testing."""
+        return {
+            'blocks': [
+                {
+                    'timestamp': start_time,
+                    'number': 1000,
+                    'hash': '0x123...',
+                    'transactions': []
+                }
+            ],
+            'start_time': start_time,
+            'end_time': end_time
+        }

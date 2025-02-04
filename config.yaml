@@ -1,0 +1,23 @@
+project:
+  name: autonomous-llm
+  version: 0.1.0
+
+storage:
+  provider: aws
+  region: us-west-2
+  bucket_name: your-bucket-name
+
+blockchain:
+  ethereum:
+    endpoint: https://eth-mainnet.g.alchemy.com/v2/your-api-key
+  solana:
+    endpoint: https://api.mainnet-beta.solana.com
+
+database:
+  type: sqlite
+  path: blockchain_data.db
+  optimization:
+    enable_caching: true
+    redis_url: "redis://localhost:6379/0"
+    partition_interval: "month"
+    analyze_interval: 86400  # 24 hours in seconds 
