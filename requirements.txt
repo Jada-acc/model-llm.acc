@@ -59,7 +59,7 @@ requests>=2.31.0
 # Monitoring and Logging
 wandb>=0.15.0
 mlflow>=2.3.0
-prometheus-client>=0.17.0
+prometheus-client>=0.19.0
 
 # Configuration
 pyyaml>=6.0.0
@@ -75,3 +75,7 @@ pyyaml>=6.0.0
 matplotlib>=3.7.1
 alembic>=1.11.0  # For database migrations
 python-dotenv>=1.0.0
+
+# Added from the code block
+jsonschema==4.21.1
+python-json-logger==2.0.7
