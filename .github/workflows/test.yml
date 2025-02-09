@@ -1,0 +1,75 @@
+name: Test Connectors
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      # Add test databases if needed
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Cache pip packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run linting
+        run: make lint
+
+      - name: Run unit tests
+        run: |
+          make test-connectors
+          make test-backup
+          make test-quality
+
+      - name: Run integration tests
+        env:
+          TEST_API_TOKEN: ${{ secrets.TEST_API_TOKEN }}
+          TEST_DB_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          TEST_ETH_URL: ${{ secrets.TEST_ETH_URL }}
+          TEST_SOL_URL: ${{ secrets.TEST_SOL_URL }}
+        run: |
+          make test-connections
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: |
+            .coverage
+            coverage.xml
+            test-reports/ 
