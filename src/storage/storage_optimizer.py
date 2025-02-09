@@ -3,13 +3,15 @@ import logging
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, text, event
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.pool import Pool
 import redis
 import zlib
 import json
 import pickle
 import base64
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +26,66 @@ class BlockMetrics:
     pass
 
 class StorageOptimizer:
-    def __init__(self, db_url: str, redis_url: Optional[str] = None):
-        """
-        Initialize storage optimizer.
+    def __init__(self, db_url: str, redis_url: Optional[str] = None, connection_tracker: Optional[callable] = None):
+        """Initialize storage optimizer.
         
         Args:
             db_url: Database connection URL
             redis_url: Optional Redis connection URL for caching
+            connection_tracker: Optional function to track database connections
         """
-        self.engine = create_engine(db_url)
-        self.SessionFactory = sessionmaker(bind=self.engine)
+        self.engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_use_lifo=True,
+            echo_pool=True if logger.level == logging.DEBUG else False
+        )
+        
+        # Store the connection tracker
+        self._connection_tracker = connection_tracker
+        
+        # Define event listener function
+        def on_checkout(dbapi_conn, connection_record, connection_proxy):
+            if self._connection_tracker:
+                self._connection_tracker(dbapi_conn)
+        
+        # Store function reference
+        self._on_checkout = on_checkout
+        
+        # Add connection pool listener
+        if connection_tracker:
+            event.listen(Pool, 'checkout', self._on_checkout)
+        
+        self._session_factory = sessionmaker(
+            bind=self.engine,
+            expire_on_commit=False
+        )
+        self.SessionFactory = scoped_session(self._session_factory)
         self.redis_client = redis.from_url(redis_url) if redis_url else None
         
+    @contextmanager
+    def session_scope(self):
+        """Provide a transactional scope around a series of operations."""
+        session = self.SessionFactory()
+        try:
+            # Track connection if provided
+            if self._connection_tracker:
+                conn = session.connection()
+                if hasattr(conn, 'driver_connection'):
+                    self._connection_tracker(conn.driver_connection)
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+            self.SessionFactory.remove()
+    
     def optimize_tables(self):
         """Optimize database table structure and indexes."""
         with self.SessionFactory() as session:
@@ -228,51 +278,53 @@ class StorageOptimizer:
             logger.error(f"Error decompressing data: {str(e)}")
             return None
 
-    def compress_old_data(self, table_name: str, days_threshold: int = 30) -> bool:
-        """
-        Compress data older than threshold.
-        
-        Args:
-            table_name: Name of the table to compress
-            days_threshold: Age threshold in days
-        """
+    def compress_old_data(self, table_name: str) -> bool:
+        """Compress data older than the retention period."""
         try:
-            cutoff_date = datetime.now() - timedelta(days=days_threshold)
+            retention_date = datetime.now() - timedelta(days=30)  # 30 days retention
             
             with self.SessionFactory() as session:
                 # Get old data
-                query = f"""
-                SELECT *
-                FROM {table_name}
-                WHERE timestamp < :cutoff_date
-                """
+                result = session.execute(
+                    text(f"""
+                    SELECT *
+                    FROM {table_name}
+                    WHERE timestamp < :retention_date
+                    AND (compressed IS NULL OR compressed = 0)
+                    """),
+                    {"retention_date": retention_date.isoformat()}  # Use ISO format string
+                )
                 
-                old_data = session.execute(text(query), {"cutoff_date": cutoff_date})
-                
-                # Compress each row
-                for row in old_data:
-                    row_dict = dict(row)
-                    compressed_data = self.compress_data(row_dict)
+                old_data = result.fetchall()
+                if not old_data:
+                    logger.info(f"No old data to compress in {table_name}")
+                    return True
                     
-                    if compressed_data:
-                        # Store compressed data
-                        session.execute(text(f"""
-                            INSERT INTO compressed_data
-                            (table_name, original_id, compressed_data, compression_date)
-                            VALUES
-                            (:table, :id, :data, :date)
-                        """), {
-                            "table": table_name,
-                            "id": row_dict.get('id'),
-                            "data": compressed_data,
-                            "date": datetime.now()
-                        })
-                        
-                        # Delete original row
-                        session.execute(text(f"""
-                            DELETE FROM {table_name}
-                            WHERE id = :id
-                        """), {"id": row_dict.get('id')})
+                # Compress and store
+                compressed_data = self.compress_data(old_data)
+                session.execute(
+                    text("""
+                    INSERT INTO compressed_data 
+                    (original_table, start_timestamp, end_timestamp, compressed_data)
+                    VALUES (:table, :start, :end, :data)
+                    """),
+                    {
+                        "table": table_name,
+                        "start": old_data[0].timestamp.isoformat(),
+                        "end": old_data[-1].timestamp.isoformat(),
+                        "data": compressed_data
+                    }
+                )
+                
+                # Mark original data as compressed
+                session.execute(
+                    text(f"""
+                    UPDATE {table_name}
+                    SET compressed = 1
+                    WHERE timestamp < :retention_date
+                    """),
+                    {"retention_date": retention_date.isoformat()}
+                )
                 
                 session.commit()
                 logger.info(f"Successfully compressed old data from {table_name}")
@@ -330,14 +382,21 @@ class StorageOptimizer:
     def store_processed_data(self, data: Dict[str, Any]) -> bool:
         """Store processed data in the database."""
         try:
+            timestamp = data.get('timestamp', datetime.now())
+            if isinstance(timestamp, datetime):
+                timestamp = timestamp.isoformat()
+            
             with self.SessionFactory() as session:
                 session.execute(text("""
-                    INSERT INTO processed_data (timestamp, data, encrypted_data)
-                    VALUES (:timestamp, :data, :encrypted_data)
+                    INSERT INTO processed_data 
+                    (timestamp, data, metadata, encrypted_data, version)
+                    VALUES (:timestamp, :data, :metadata, :encrypted_data, :version)
                 """), {
-                    'timestamp': data.get('timestamp', datetime.now()),
+                    'timestamp': timestamp,
                     'data': str(data),
-                    'encrypted_data': data.get('encrypted_data')
+                    'metadata': data.get('metadata'),
+                    'encrypted_data': data.get('encrypted_data'),
+                    'version': data.get('version', '1.0')
                 })
                 session.commit()
                 logger.info("Successfully stored processed data")
@@ -345,3 +404,37 @@ class StorageOptimizer:
         except Exception as e:
             logger.error(f"Error storing processed data: {str(e)}")
             return False
+
+    def cleanup(self):
+        """Clean up all resources."""
+        try:
+            # Close all sessions
+            self.SessionFactory.remove()
+            
+            # Remove event listeners
+            if hasattr(self, '_on_checkout'):
+                event.remove(Pool, 'checkout', self._on_checkout)
+            
+            # Close all connections in the pool
+            if hasattr(self.engine, 'dispose'):
+                try:
+                    # Get and close raw connection using new API
+                    with self.engine.connect() as conn:
+                        if hasattr(conn, 'driver_connection'):
+                            conn.driver_connection.close()
+                except Exception as e:
+                    logger.warning(f"Error closing connection: {str(e)}")
+                # Dispose of the engine
+                self.engine.dispose()
+            
+            # Close Redis connection if exists
+            if self.redis_client:
+                self.redis_client.close()
+            
+            # Explicitly close the engine pool
+            if hasattr(self.engine, 'pool'):
+                self.engine.pool.dispose()
+            
+            logger.info("Successfully cleaned up all resources")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
