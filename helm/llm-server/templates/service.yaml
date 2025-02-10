@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "llm-server.fullname" . }}
+  name: llm-server
   labels:
-    {{- include "llm-server.labels" . | nindent 4 }}
+    app: llm-server
 spec:
-  type: {{ .Values.service.type }}
+  type: LoadBalancer
   ports:
-    - port: {{ .Values.service.port }}
+    - port: 80
       targetPort: 8000
       protocol: TCP
       name: http
-    - port: {{ .Values.monitoring.prometheusPort }}
+    - port: 9090
       targetPort: 9090
       protocol: TCP
       name: metrics
   selector:
-    {{- include "llm-server.selectorLabels" . | nindent 4 }} 
+    app: llm-server 
