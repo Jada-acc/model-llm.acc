@@ -1,0 +1,87 @@
+{{- if and .Values.monitoring.prometheusRule (lookup "monitoring.coreos.com/v1" "CustomResourceDefinition" "" "prometheusrules.monitoring.coreos.com") }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "llm-server.fullname" . }}-alerts
+  labels:
+    {{- include "llm-server.labels" . | nindent 4 }}
+    prometheus: {{ .Values.monitoring.prometheusInstance }}
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "llm-server.fullname" . }}
+    uid: {{ (lookup "apps/v1" "Deployment" .Release.Namespace (include "llm-server.fullname" .)).metadata.uid }}
+spec:
+  groups:
+  - name: llm-server
+    rules:
+    - alert: HighErrorRate
+      expr: |
+        sum(rate(llm_requests_total{status="error"}[5m])) 
+        / 
+        sum(rate(llm_requests_total[5m])) > {{ .Values.alerting.errorRateThreshold }}
+      for: 5m
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: High error rate detected
+        description: Error rate is above {{ .Values.alerting.errorRateThreshold }}% for 5 minutes
+        runbook_url: {{ .Values.alerting.runbookUrl }}/high-error-rate
+
+    - alert: HighLatency
+      expr: |
+        histogram_quantile(0.95, sum(rate(llm_request_duration_seconds_bucket[5m])) by (le)) 
+        > {{ .Values.alerting.latencyThreshold }}
+      for: 5m
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: High latency detected
+        description: 95th percentile latency is above {{ .Values.alerting.latencyThreshold }} seconds
+
+    - alert: HighGPUMemoryUsage
+      expr: |
+        llm_gpu_memory_used_bytes / 1024 / 1024 / 1024 
+        > {{ .Values.alerting.gpuMemoryThreshold }}
+      for: 5m
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: High GPU memory usage
+        description: GPU memory usage is above {{ .Values.alerting.gpuMemoryThreshold }}GB
+
+    - alert: ModelCacheExhausted
+      expr: llm_model_cache_size >= {{ .Values.modelConfig.maxCacheSize }}
+      for: 5m
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: Model cache is full
+        description: Model cache has reached maximum capacity
+
+    - alert: HighRequestRate
+      expr: |
+        sum(rate(llm_requests_total[5m])) 
+        > {{ .Values.alerting.requestRateThreshold }}
+      for: 5m
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: High request rate detected
+        description: Request rate is above {{ .Values.alerting.requestRateThreshold }} req/s
+
+    - alert: PodRestarting
+      expr: |
+        increase(kube_pod_container_status_restarts_total{container="{{ .Chart.Name }}"}[15m]) > 0
+      labels:
+        severity: warning
+        team: ml-ops
+      annotations:
+        summary: Pod is restarting
+        description: Pod {{ "{{" }} $labels.pod {{ "}}" }} has restarted in the last 15 minutes
+{{- end }}

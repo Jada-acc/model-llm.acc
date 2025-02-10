@@ -1,0 +1,68 @@
+# Default values for llm-server
+replicaCount: 3
+
+image:
+  repository: python
+  tag: "3.9-slim"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
+  metricsPort: 9090
+
+resources:
+  limits:
+    cpu: "2"
+    memory: "1Gi"
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  customMetrics: true
+  requestsPerPod: 50
+  gpuMemoryThreshold: "12Gi"
+
+monitoring:
+  enabled: true
+  serviceMonitor: true
+  prometheusRule: true
+  prometheusInstance: "default"
+  scrapeInterval: 15s
+
+# Add alerting configuration
+alerting:
+  errorRateThreshold: 0.1
+  latencyThreshold: 2
+  gpuMemoryThreshold: 14
+  requestRateThreshold: 1000
+  maxCacheSize: 10
+  runbookUrl: "https://wiki.example.com/runbooks"
+  slack:
+    enabled: true
+    webhook: ""
+    channel: "#alerts"
+  email:
+    enabled: false
+    recipients: []
+
+modelConfig:
+  name: "gpt2"
+  version: "latest"
+  maxBatchSize: 32
+  maxMemory: 0.9
+  maxCacheSize: 5
+
+storage:
+  modelStorage:
+    size: "1Gi"
+    storageClass: "hostpath"
+  cacheStorage:
+    enabled: true

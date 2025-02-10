@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-server
+  labels:
+    app: llm-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: llm-server
+  template:
+    metadata:
+      labels:
+        app: llm-server
+    spec:
+      containers:
+      - name: llm-server
+        image: llm-server:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "4"
+          requests:
+            memory: "8Gi"
+            cpu: "2"
+        env:
+        - name: MODEL_NAME
+          value: "gpt2"
+        - name: MODEL_VERSION
+          value: "latest"
+        volumeMounts:
+        - name: model-storage
+          mountPath: /app/models
+        - name: cache-storage
+          mountPath: /app/cache
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-storage-pvc
+      - name: cache-storage
+        emptyDir: {} 

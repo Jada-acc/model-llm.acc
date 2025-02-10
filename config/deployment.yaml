@@ -1,0 +1,27 @@
+model_server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  max_batch_size: 32
+  default_model: "gpt2"
+  default_version: "latest"
+  max_memory: 0.9
+  
+  model_registry:
+    models_dir: "models"
+    cache_dir: "cache"
+    
+  inference_pipeline:
+    max_length: 512
+    use_cuda: true
+    fp16: true
+    cache_size: 1024
+
+load_balancer:
+  servers:
+    - host: "localhost"
+      port: 8001
+      workers: 2
+    - host: "localhost"
+      port: 8002
+      workers: 2 
