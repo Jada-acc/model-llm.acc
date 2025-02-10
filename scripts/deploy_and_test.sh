@@ -8,24 +8,11 @@ NC='\033[0m' # No Color
 
 echo "🚀 Deploying LLM Server..."
 
-# Debug info
-echo "Current CRDs:"
-kubectl get crd | grep monitoring.coreos.com
-
-# Verify Prometheus CRDs are available
-echo "Verifying Prometheus CRDs..."
-if ! kubectl get crd prometheusrules.monitoring.coreos.com &>/dev/null; then
-    echo "PrometheusRules CRD not found. Checking monitoring namespace..."
-    kubectl get all -n monitoring
-    exit 1
-fi
-
 # Deploy/upgrade the helm chart
 echo "Deploying Helm chart..."
 helm upgrade --install llm-server ./helm/llm-server \
   --namespace default \
-  --set monitoring.enabled=true \
-  --set monitoring.prometheusOperator.enabled=true \
+  --set monitoring.enabled=false \
   --wait --timeout 5m || {
     echo -e "${RED}Failed to deploy helm chart${NC}"
     kubectl get pods --all-namespaces

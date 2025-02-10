@@ -32,35 +32,6 @@ jobs:
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
         
-    - name: Add Prometheus Helm repo
-      run: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
-        
-    - name: Install Prometheus Operator
-      run: |
-        kubectl create namespace monitoring
-        helm install prometheus prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
-          --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
-          --wait --timeout 5m
-        
-        # Wait for CRDs to be ready
-        echo "Waiting for Prometheus CRDs to be ready..."
-        sleep 30  # Give time for CRDs to be registered
-        kubectl wait --for condition=established --timeout=60s crd/prometheusrules.monitoring.coreos.com
-        kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
-        
-        # Wait for Prometheus pods
-        echo "Waiting for Prometheus pods..."
-        kubectl wait --for=condition=ready pod -l app=prometheus --timeout=120s -n monitoring
-        
-    - name: Verify CRDs
-      run: |
-        kubectl get crd prometheusrules.monitoring.coreos.com
-        kubectl get crd servicemonitors.monitoring.coreos.com
-        
     - name: Deploy and test
       run: |
         chmod +x scripts/deploy_and_test.sh

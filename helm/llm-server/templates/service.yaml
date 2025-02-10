@@ -11,9 +11,5 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
       name: http
-    - port: {{ .Values.service.metricsPort }}
-      targetPort: 9090
-      protocol: TCP
-      name: metrics
   selector:
     {{- include "llm-server.selectorLabels" . | nindent 4 }} 
