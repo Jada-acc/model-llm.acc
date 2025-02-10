@@ -14,14 +14,17 @@ helm upgrade --install llm-server ./helm/llm-server \
   --namespace default \
   --set monitoring.enabled=false \
   --set service.type=ClusterIP \
-  --wait --timeout 2m || {
+  --set replicaCount=1 \
+  --atomic \
+  --timeout 3m || {
     echo -e "${RED}Failed to deploy helm chart${NC}"
     kubectl get pods --all-namespaces
+    kubectl describe deployment llm-server
     exit 1
 }
 
-# Verify deployment
-echo "Verifying deployment..."
+# Wait for deployment to be ready
+echo "Waiting for deployment to be ready..."
 kubectl rollout status deployment/llm-server --timeout=2m || {
     echo -e "${RED}Deployment failed to roll out${NC}"
     kubectl get pods
@@ -32,13 +35,22 @@ kubectl rollout status deployment/llm-server --timeout=2m || {
 # Test the service
 echo "Testing service..."
 SERVICE_IP=$(kubectl get service llm-server -o jsonpath='{.spec.clusterIP}')
-PORT=$(kubectl get service llm-server -o jsonpath='{.spec.ports[0].port}')
+PORT=8000
 
+echo "Service endpoint: http://${SERVICE_IP}:${PORT}"
+
+# Wait for service to be ready
 echo "Waiting for service to be ready..."
 for i in {1..30}; do
-    if curl -s "http://${SERVICE_IP}:${PORT}" > /dev/null; then
+    if kubectl run curl-test --image=curlimages/curl --rm -i --restart=Never -- curl -s "http://${SERVICE_IP}:${PORT}"; then
         echo -e "${GREEN}✅ Service is responding${NC}"
         break
+    fi
+    if [ $i -eq 30 ]; then
+        echo -e "${RED}Service failed to respond${NC}"
+        kubectl get pods
+        kubectl get svc
+        exit 1
     fi
     echo "Waiting for service to respond... ($i/30)"
     sleep 2
