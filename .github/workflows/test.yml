@@ -17,16 +17,20 @@ jobs:
       with:
         python-version: '3.9'
         
-    - name: Set up k3d
-      uses: nolar/setup-k3d-k3s@v1
-      with:
-        version: v5.4.6
+    - name: Install k3d
+      run: |
+        wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        k3d cluster create test-cluster
         
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r test-requirements.txt
+        
+    - name: Install Helm
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
         
     - name: Deploy and test
       run: |
