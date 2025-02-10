@@ -1,5 +1,6 @@
 import pytest
 import requests
+import os
 import time
 import json
 import subprocess
@@ -7,6 +8,36 @@ from requests.exceptions import ConnectionError
 from prometheus_api_client import PrometheusConnect
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+def get_service_url():
+    # Get service IP and port using kubectl
+    cmd = "kubectl get service llm-server -o jsonpath='{.spec.clusterIP}'"
+    service_ip = os.popen(cmd).read().strip()
+    return f"http://{service_ip}:8000"
+
+def test_server_health():
+    """Test that the server is responding to requests"""
+    url = get_service_url()
+    
+    # Retry mechanism for eventual consistency
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            assert response.status_code == 200
+            return
+        except (requests.exceptions.RequestException, AssertionError):
+            if i == max_retries - 1:
+                raise
+            time.sleep(2)
+
+def test_server_response():
+    """Test that the server returns expected response"""
+    url = get_service_url()
+    response = requests.get(url)
+    assert response.status_code == 200
+    assert "Directory listing for /" in response.text
 
 def wait_for_server(url, timeout=30, interval=1):
     """Wait for server to be ready"""
