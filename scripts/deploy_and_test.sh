@@ -8,18 +8,16 @@ NC='\033[0m' # No Color
 
 echo "🚀 Deploying LLM Server..."
 
-# Wait for Prometheus CRDs to be ready
-echo "Waiting for Prometheus CRDs..."
-kubectl wait --for condition=established --timeout=120s crd/prometheusrules.monitoring.coreos.com || {
-    echo "PrometheusRules CRD not found"
-    kubectl get crd
-    exit 1
-}
-kubectl wait --for condition=established --timeout=120s crd/servicemonitors.monitoring.coreos.com || {
-    echo "ServiceMonitor CRD not found"
-    kubectl get crd
-    exit 1
-}
+# Verify Prometheus CRDs are available
+echo "Verifying Prometheus CRDs..."
+if ! kubectl get crd prometheusrules.monitoring.coreos.com &>/dev/null; then
+    echo "PrometheusRules CRD not found. Waiting for it to be created..."
+    kubectl wait --for condition=established --timeout=60s crd/prometheusrules.monitoring.coreos.com || {
+        echo "PrometheusRules CRD not available"
+        kubectl get crd
+        exit 1
+    }
+fi
 
 # Deploy/upgrade the helm chart
 echo "Deploying Helm chart..."

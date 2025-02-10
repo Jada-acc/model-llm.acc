@@ -46,6 +46,16 @@ jobs:
           --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
           --wait --timeout 5m
         
+        # Wait for CRDs to be ready
+        echo "Waiting for Prometheus CRDs to be ready..."
+        sleep 30  # Give time for CRDs to be registered
+        kubectl wait --for condition=established --timeout=60s crd/prometheusrules.monitoring.coreos.com
+        kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
+        
+        # Wait for Prometheus pods
+        echo "Waiting for Prometheus pods..."
+        kubectl wait --for=condition=ready pod -l app=prometheus --timeout=120s -n monitoring
+        
     - name: Verify CRDs
       run: |
         kubectl get crd prometheusrules.monitoring.coreos.com
