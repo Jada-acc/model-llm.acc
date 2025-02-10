@@ -2,9 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    branches: [ main, phase3-testing ]
+    branches: [ phase3-testing ]
   pull_request:
-    branches: [ main ]
+    branches: [ phase3-testing ]
 
 jobs:
   test:
@@ -42,7 +42,7 @@ jobs:
         helm install prometheus prometheus-community/kube-prometheus-stack \
           --namespace monitoring \
           --create-namespace \
-          --wait
+          --wait --timeout 5m
         
     - name: Deploy and test
       run: |

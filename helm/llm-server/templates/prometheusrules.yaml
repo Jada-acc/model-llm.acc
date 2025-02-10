@@ -5,12 +5,7 @@ metadata:
   name: {{ include "llm-server.fullname" . }}-alerts
   labels:
     {{- include "llm-server.labels" . | nindent 4 }}
-    prometheus: {{ .Values.monitoring.prometheusInstance }}
-  ownerReferences:
-  - apiVersion: apps/v1
-    kind: Deployment
-    name: {{ include "llm-server.fullname" . }}
-    uid: {{ (lookup "apps/v1" "Deployment" .Release.Namespace (include "llm-server.fullname" .)).metadata.uid }}
+    prometheus: {{ .Values.monitoring.prometheusInstance | default "default" }}
 spec:
   groups:
   - name: llm-server
