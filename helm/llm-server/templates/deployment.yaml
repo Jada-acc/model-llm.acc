@@ -14,33 +14,26 @@ spec:
       labels:
         {{- include "llm-server.selectorLabels" . | nindent 8 }}
     spec:
-      imagePullSecrets:
-        - name: regcred
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python"]
-          args: ["-m", "http.server", "8000"]
+          image: "alpine:3.18"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - "/bin/sh"
+            - "-c"
+            - |
+              apk add --no-cache netcat-openbsd
+              while true; do 
+                echo -e 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World!' | nc -l -p 8000
+              done
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-            initialDelaySeconds: 15
-            periodSeconds: 20
-      volumes:
-        - name: server-config
-          configMap:
-            name: {{ include "llm-server.fullname" . }}-server
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

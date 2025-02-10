@@ -10,6 +10,5 @@ spec:
     - port: 8000
       targetPort: 8000
       protocol: TCP
-      name: http
   selector:
-    {{- include "llm-server.selectorLabels" . | nindent 4 }} 
+    {{- include "llm-server.selectorLabels" . | nindent 4 }}
