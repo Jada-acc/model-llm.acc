@@ -15,15 +15,19 @@ kubectl cluster-info || {
     exit 1
 }
 
-# Deploy/upgrade the helm chart
+# Remove any existing deployment
+echo "Cleaning up any existing deployment..."
+helm uninstall llm-server --namespace default || true
+kubectl delete pods,services -l app.kubernetes.io/instance=llm-server --namespace default || true
+
+# Deploy the helm chart
 echo "Deploying Helm chart..."
-helm upgrade --install llm-server ./helm/llm-server \
+helm install llm-server ./helm/llm-server \
   --namespace default \
   --set monitoring.enabled=false \
   --set service.type=ClusterIP \
   --set replicaCount=1 \
-  --wait \
-  --timeout 5m || {
+  --create-namespace || {
     echo -e "${RED}Failed to deploy helm chart${NC}"
     kubectl get pods --all-namespaces
     kubectl describe pods -l app.kubernetes.io/instance=llm-server
@@ -32,12 +36,21 @@ helm upgrade --install llm-server ./helm/llm-server \
 
 # Wait for deployment to be ready
 echo "Waiting for deployment to be ready..."
-kubectl wait --for=condition=available deployment/llm-server --timeout=2m || {
-    echo -e "${RED}Deployment failed to be available${NC}"
-    kubectl get pods
-    kubectl describe deployment llm-server
-    exit 1
-}
+for i in {1..30}; do
+    if kubectl wait --for=condition=available deployment/llm-server --timeout=10s; then
+        echo -e "${GREEN}Deployment is ready${NC}"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo -e "${RED}Deployment failed to be available${NC}"
+        kubectl get pods
+        kubectl describe deployment llm-server
+        kubectl logs -l app.kubernetes.io/instance=llm-server
+        exit 1
+    fi
+    echo "Waiting for deployment to be ready... ($i/30)"
+    sleep 2
+done
 
 # Test the service
 echo "Testing service..."
