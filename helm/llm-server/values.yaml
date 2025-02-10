@@ -1,23 +1,22 @@
 # Default values for llm-server
-replicaCount: 3
+replicaCount: 1
 
 image:
-  repository: python
-  tag: "3.9-slim"
+  repository: alpine
+  tag: "3.18"
   pullPolicy: IfNotPresent
 
 service:
-  type: LoadBalancer
-  port: 80
-  targetPort: 8000
+  type: ClusterIP
+  port: 8000
 
 resources:
   limits:
-    cpu: "2"
-    memory: "1Gi"
+    cpu: "200m"
+    memory: "128Mi"
   requests:
-    cpu: "500m"
-    memory: "512Mi"
+    cpu: "100m"
+    memory: "64Mi"
 
 autoscaling:
   enabled: true
@@ -39,3 +38,8 @@ storage:
     storageClass: "hostpath"
   cacheStorage:
     enabled: true
+
+monitoring:
+  enabled: false
+  prometheusRule:
+    enabled: false
