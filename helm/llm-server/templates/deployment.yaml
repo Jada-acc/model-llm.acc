@@ -13,22 +13,20 @@ spec:
     metadata:
       labels:
         {{- include "llm-server.selectorLabels" . | nindent 8 }}
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "{{ .Values.service.metricsPort }}"
     spec:
-      serviceAccountName: {{ include "llm-server.fullname" . }}
       containers:
-        - name: llm-server
+        - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python3"]
-          args: ["/app/server/server.py"]
+          command: ["python"]
+          args: ["-c", "exec(open('/app/server.py').read())"]
           ports:
             - name: http
-              containerPort: {{ .Values.service.targetPort }}
+              containerPort: 8000
+              protocol: TCP
             - name: metrics
-              containerPort: {{ .Values.service.metricsPort }}
+              containerPort: 9090
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
@@ -39,47 +37,9 @@ spec:
             - name: PYTHONPATH
               value: /pythonpath
           volumeMounts:
-            - name: model-storage
-              mountPath: /app/models
-            - name: cache-storage
-              mountPath: /app/cache
-            - name: config
-              mountPath: /app/config
-            - name: server
-              mountPath: /app/server
-            - name: python-packages
-              mountPath: /pythonpath
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            - name: server-config
+              mountPath: /app
       volumes:
-        - name: model-storage
-          persistentVolumeClaim:
-            claimName: {{ include "llm-server.fullname" . }}-models
-        - name: cache-storage
-          emptyDir: {}
-        - name: config
-          configMap:
-            name: {{ include "llm-server.fullname" . }}-config
-        - name: server
+        - name: server-config
           configMap:
             name: {{ include "llm-server.fullname" . }}-server
-        - name: python-packages
-          emptyDir: {}
-      initContainers:
-        - name: install-prometheus-client
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          command: ["pip"]
-          args: ["install", "--target=/pythonpath", "prometheus_client"]
-          volumeMounts:
-            - name: python-packages
-              mountPath: /pythonpath
