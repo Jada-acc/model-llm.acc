@@ -8,15 +8,16 @@ NC='\033[0m' # No Color
 
 echo "🚀 Deploying LLM Server..."
 
+# Debug info
+echo "Current CRDs:"
+kubectl get crd | grep monitoring.coreos.com
+
 # Verify Prometheus CRDs are available
 echo "Verifying Prometheus CRDs..."
 if ! kubectl get crd prometheusrules.monitoring.coreos.com &>/dev/null; then
-    echo "PrometheusRules CRD not found. Waiting for it to be created..."
-    kubectl wait --for condition=established --timeout=60s crd/prometheusrules.monitoring.coreos.com || {
-        echo "PrometheusRules CRD not available"
-        kubectl get crd
-        exit 1
-    }
+    echo "PrometheusRules CRD not found. Checking monitoring namespace..."
+    kubectl get all -n monitoring
+    exit 1
 fi
 
 # Deploy/upgrade the helm chart
