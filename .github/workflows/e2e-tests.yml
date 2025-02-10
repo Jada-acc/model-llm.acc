@@ -39,10 +39,17 @@ jobs:
         
     - name: Install Prometheus Operator
       run: |
+        kubectl create namespace monitoring
         helm install prometheus prometheus-community/kube-prometheus-stack \
           --namespace monitoring \
-          --create-namespace \
+          --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+          --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
           --wait --timeout 5m
+        
+    - name: Verify CRDs
+      run: |
+        kubectl get crd prometheusrules.monitoring.coreos.com
+        kubectl get crd servicemonitors.monitoring.coreos.com
         
     - name: Deploy and test
       run: |

@@ -10,9 +10,16 @@ echo "🚀 Deploying LLM Server..."
 
 # Wait for Prometheus CRDs to be ready
 echo "Waiting for Prometheus CRDs..."
-kubectl wait --for condition=established --timeout=120s \
-  crd/prometheusrules.monitoring.coreos.com \
-  crd/servicemonitors.monitoring.coreos.com || true
+kubectl wait --for condition=established --timeout=120s crd/prometheusrules.monitoring.coreos.com || {
+    echo "PrometheusRules CRD not found"
+    kubectl get crd
+    exit 1
+}
+kubectl wait --for condition=established --timeout=120s crd/servicemonitors.monitoring.coreos.com || {
+    echo "ServiceMonitor CRD not found"
+    kubectl get crd
+    exit 1
+}
 
 # Deploy/upgrade the helm chart
 echo "Deploying Helm chart..."
@@ -20,9 +27,9 @@ helm upgrade --install llm-server ./helm/llm-server \
   --namespace default \
   --set monitoring.enabled=true \
   --set monitoring.prometheusOperator.enabled=true \
-  --wait || {
+  --wait --timeout 5m || {
     echo -e "${RED}Failed to deploy helm chart${NC}"
-    kubectl get pods
+    kubectl get pods --all-namespaces
     kubectl describe pod -l app.kubernetes.io/instance=llm-server
     exit 1
 }
