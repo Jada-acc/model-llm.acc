@@ -18,27 +18,12 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python"]
-          args: ["-c", "exec(open('/app/server.py').read())"]
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
-            - name: metrics
-              containerPort: 9090
-              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          env:
-            - name: MODEL_NAME
-              value: {{ .Values.modelConfig.name }}
-            - name: MODEL_VERSION
-              value: {{ .Values.modelConfig.version }}
-            - name: PYTHONPATH
-              value: /pythonpath
-          volumeMounts:
-            - name: server-config
-              mountPath: /app
       volumes:
         - name: server-config
           configMap:
