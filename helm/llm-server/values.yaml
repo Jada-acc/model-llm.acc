@@ -32,9 +32,12 @@ autoscaling:
 
 monitoring:
   enabled: true
-  serviceMonitor: true
-  prometheusRule: true
-  prometheusInstance: "default"
+  prometheusOperator:
+    enabled: true
+  prometheusRule:
+    enabled: true
+  serviceMonitor:
+    enabled: true
   scrapeInterval: 15s
 
 # Add alerting configuration

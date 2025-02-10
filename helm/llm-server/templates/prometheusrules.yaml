@@ -1,4 +1,4 @@
-{{- if and .Values.monitoring.prometheusRule (lookup "monitoring.coreos.com/v1" "CustomResourceDefinition" "" "prometheusrules.monitoring.coreos.com") }}
+{{- if and .Values.monitoring.enabled .Values.monitoring.prometheusRule.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -17,17 +17,16 @@ spec:
     rules:
     - alert: HighErrorRate
       expr: |
-        sum(rate(llm_requests_total{status="error"}[5m])) 
+        sum(rate(http_requests_total{status="500"}[5m])) 
         / 
-        sum(rate(llm_requests_total[5m])) > {{ .Values.alerting.errorRateThreshold }}
+        sum(rate(http_requests_total[5m])) > 0.1
       for: 5m
       labels:
         severity: warning
         team: ml-ops
       annotations:
         summary: High error rate detected
-        description: Error rate is above {{ .Values.alerting.errorRateThreshold }}% for 5 minutes
-        runbook_url: {{ .Values.alerting.runbookUrl }}/high-error-rate
+        description: Error rate is above 10%
 
     - alert: HighLatency
       expr: |

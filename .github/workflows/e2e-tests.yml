@@ -32,6 +32,18 @@ jobs:
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
         
+    - name: Add Prometheus Helm repo
+      run: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+        
+    - name: Install Prometheus Operator
+      run: |
+        helm install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --create-namespace \
+          --wait
+        
     - name: Deploy and test
       run: |
         chmod +x scripts/deploy_and_test.sh
