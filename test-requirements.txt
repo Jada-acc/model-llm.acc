@@ -1,0 +1,6 @@
+ # Test dependencies
+pytest
+requests
+prometheus-api-client
+pytest-timeout
+pytest-asyncio
