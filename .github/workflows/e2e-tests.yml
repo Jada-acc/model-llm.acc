@@ -2,9 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    branches: [ main, phase3-testing ]
+    branches: [ phase3-testing ]
   pull_request:
-    branches: [ main ]
+    branches: [ phase3-testing ]
 
 jobs:
   test:
@@ -26,25 +26,18 @@ jobs:
     - name: Install k3d
       run: |
         curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-        k3d cluster create test-cluster
+        k3d cluster create test-cluster --wait --timeout 5m
+        kubectl wait --for=condition=ready node --all --timeout=2m
+        kubectl cluster-info
         
     - name: Install Helm
       run: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-        
-    - name: Add Prometheus Helm repo
-      run: |
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
-        
-    - name: Install Prometheus Operator
-      run: |
-        helm install prometheus prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --create-namespace \
-          --wait
+        helm version
         
     - name: Deploy and test
+      env:
+        PYTHONUNBUFFERED: 1
       run: |
         chmod +x scripts/deploy_and_test.sh
         ./scripts/deploy_and_test.sh 

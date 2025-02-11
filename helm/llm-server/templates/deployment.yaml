@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "llm-server.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       {{- include "llm-server.selectorLabels" . | nindent 6 }}
@@ -16,30 +16,24 @@ spec:
     spec:
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python"]
-          args: ["-c", "exec(open('/app/server.py').read())"]
+          image: "alpine:3.18"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - "/bin/sh"
+            - "-c"
+            - |
+              apk add --no-cache netcat-openbsd
+              while true; do 
+                echo -e 'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World!' | nc -l -p 8000
+              done
           ports:
             - name: http
               containerPort: 8000
               protocol: TCP
-            - name: metrics
-              containerPort: 9090
-              protocol: TCP
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          env:
-            - name: MODEL_NAME
-              value: {{ .Values.modelConfig.name }}
-            - name: MODEL_VERSION
-              value: {{ .Values.modelConfig.version }}
-            - name: PYTHONPATH
-              value: /pythonpath
-          volumeMounts:
-            - name: server-config
-              mountPath: /app
-      volumes:
-        - name: server-config
-          configMap:
-            name: {{ include "llm-server.fullname" . }}-server
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

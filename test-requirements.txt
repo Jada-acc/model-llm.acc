@@ -1,6 +1,7 @@
- # Test dependencies
-pytest
-requests
+# Test dependencies
+pytest>=7.0.0
+requests>=2.31.0
 prometheus-api-client
-pytest-timeout
-pytest-asyncio
+pytest-timeout>=2.1.0
+pytest-asyncio>=0.21.0
+pytest-xprocess>=0.23.0 
