@@ -5,9 +5,9 @@ metadata:
   labels:
     {{- include "llm-server.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type }}
   ports:
-    - port: 8000
+    - port: {{ .Values.service.port }}
       targetPort: 8000
       protocol: TCP
   selector:
