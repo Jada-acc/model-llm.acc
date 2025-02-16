@@ -25,8 +25,6 @@ echo "Deploying Helm chart..."
 helm install llm-server ./helm/llm-server \
   --namespace default \
   --set replicaCount=1 \
-  --set monitoring.enabled=false \
-  --set monitoring.prometheusRule.enabled=false \
   --create-namespace || {
     echo -e "${RED}Failed to deploy helm chart${NC}"
     kubectl get pods -A
